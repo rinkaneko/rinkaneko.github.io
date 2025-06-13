@@ -1,0 +1,108 @@
+---
+import { SITE, SKILLSSHOWCASE_CONFIG, SOCIAL_LINKS } from '~/config.ts'
+import { GET } from './api/github.ts'
+import { GITHUB_CONFIG, POSTS_CONFIG } from '~/config.ts'
+import { padMissingWeeks, postsSort } from '~/lib/utils'
+import { getCollection } from 'astro:content'
+import Layout from '~/layouts/Layout.astro'
+import SectionDivider from '~/components/base/SectionDivider.astro'
+import GithubContributions from '~/components/base/GithubContributions.astro'
+import SocialLink from '~/components/base/SocialLink.astro'
+import List from '~/components/posts/card/List.astro'
+import SkillsShowcase from '~/components/base/SkillsShowcase.astro'
+
+const { ENABLED } = GITHUB_CONFIG
+const { size, type } = POSTS_CONFIG.homePageConfig
+const { SKILLS_ENABLED, SKILLS_DATA } = SKILLSSHOWCASE_CONFIG
+
+let githubFollowerCount = null
+let githubGraphqlData: Additional.Github.Week[] = []
+
+if (ENABLED) {
+  try {
+    const githubInfo = await GET(Astro)
+    const githubData = await githubInfo.json()
+
+    // 默认53周，不足53周则填充
+    const last53weeks = githubData?.data?.viewer?.contributionsCollection?.contributionCalendar?.weeks.slice(-53)
+    const newWeeks = padMissingWeeks(last53weeks, 53)
+
+    githubGraphqlData = newWeeks
+    githubFollowerCount = githubData?.data.viewer.followers.totalCount || null
+  } catch (error) {
+    console.error('Failed to fetch GitHub data:', error)
+  }
+}
+
+const allPosts = await getCollection('posts')
+const posts = postsSort(allPosts).slice(0, size)
+---
+
+<Layout title="Rinkaneko" description={SITE.description}>
+  <div class="relative z-[1]">
+    <div class="py-8 pb-10 px-6 sm:px-8">
+      <h1 class="flex flex-col gap-2">
+        <span class="text-4xl sm:text-5xl tracking-tight"> Rinkaneko </span>
+        <span class="text-muted-foreground font-light text-xl sm:text-2xl block tracking-wide text-balance"> 明媚自由，我的形容词～ </span>
+      </h1>
+      <div class="pro text-muted-foreground text-balance">
+        <p>感觉主动进入这个页面的人都是关心我的人哟！一分钟了解我。</p>
+        <p>偶尔有点小文艺，时常会莫名的感伤，音乐细胞为零，但不妨碍我喜欢音乐。</p>
+        <p>是个恋家的胆小鬼，有时候倔强的不像话，自负又自卑有点矛盾体。</p>
+        <p>一腔热血，骨子里带着点隐隐的叛逆，满足但不拘泥于平平淡淡的生活。</p>
+        <p>永远相信爱与梦想，始终相信前方终有自己喜欢的风景。</p>
+        <p>自认为记忆力很差，只有用笔记下来的片段，我看着文字才能回忆起细节。</p>
+        <p>00 后，即将大学毕业的老油条，白天是 (半个) 产品设计师（UX/UI），晚上是 DIY 爱好者。</p>
+      </div>
+      <div class="mt-6 flex gap-6">
+        {
+          SOCIAL_LINKS.map((item) => {
+            const isGithub = item.name.toLowerCase() === 'github'
+            if (isGithub && ENABLED && githubFollowerCount !== null) {
+              return (
+                <SocialLink href={item.url} icon={item.icon} count={githubFollowerCount} label="followers" aria-label="Follow on Github" />
+              )
+            }
+            return <SocialLink href={item.url} icon={item.icon} aria-label={`Link of ${item.name}`} count={item.count} label="followers" />
+          })
+        }
+      </div>
+    </div>
+    {
+      ENABLED && githubGraphqlData.length > 0 && (
+        <>
+          <SectionDivider />
+          <div class="py-8 pb-10 px-6 max-md:px-6">
+            <div class="px-2 max-md:px-0">
+              <h2 class="text-2xl sm:text-3xl">最近贡献</h2>
+              <p class="text-muted-foreground mb-6 mt-1">最近的一些贡献。</p>
+            </div>
+            <GithubContributions weeks={githubGraphqlData} />
+          </div>
+        </>
+      )
+    }
+    {
+      SKILLS_ENABLED && SKILLS_DATA.length > 0 && (
+        <>
+          <SectionDivider />
+          <div class="py-8 pb-10 px-6 max-md:px-6">
+            <div class="px-2 max-md:px-0">
+              <h2 class="text-2xl sm:text-3xl">技能</h2>
+              <p class="text-muted-foreground mb-6 mt-1">我的一些技能：</p>
+            </div>
+            <SkillsShowcase skillsData={SKILLS_DATA} />
+          </div>
+        </>
+      )
+    }
+    <SectionDivider />
+    <div class="py-8 pb-10 px-6 sm:px-8">
+      <h2 class="text-3xl">文章</h2>
+      <p class="text-muted-foreground mb-6 mt-1">
+        最近 {posts.length} 篇博客文章，希望对你有帮助。
+      </p>
+      <List {posts} {type} heroImageLayout={POSTS_CONFIG.homePageConfig?.heroImageLayout} />
+    </div>
+  </div>
+</Layout>
