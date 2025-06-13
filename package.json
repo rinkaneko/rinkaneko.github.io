@@ -2,7 +2,7 @@
   "name": "litos",
   "type": "module",
   "version": "0.0.1",
-  "packageManager": "10.12.1",
+  "packageManager": "pnpm@10.6.1",
   "scripts": {
     "dev": "astro dev",
     "build": "astro check && astro build",
